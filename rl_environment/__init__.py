@@ -72,9 +72,20 @@ class HiveBoundEnv(gym.Env):
         # Example when using discrete actions:
         self.action_space = spaces.Discrete(4)
         # Example for using image as input (channel-first; channel-last also works):
+
+        player_position = np.array([self.player.rect.centerx, self.player.rect.centery])
+
+        map_rects = np.array(self.map["rects"]).flatten()
+
+        guard_positions = np.array([guard.rect for guard in self.guards]).flatten()
+
+        observation = np.concatenate((player_position, map_rects, guard_positions))
+
+        # Define observation space
         self.observation_space = spaces.Box(
-            low=np.array([0, 0]),
-            high=np.array([WIN_WIDTH, 1800]),
+            low=0,
+            high=1800,
+            shape=(len(observation),),
             dtype=np.int64,
         )
 
@@ -97,9 +108,14 @@ class HiveBoundEnv(gym.Env):
                 self.down = False
                 self.right = False
 
-        self.observation = np.array(
-            [self.player.rect.centerx, self.player.rect.centery]
-        )
+        player_position = np.array([self.player.rect.centerx, self.player.rect.centery])
+
+        map_rects = np.array(self.map["rects"]).flatten()
+
+        guard_positions = np.array([guard.rect for guard in self.guards]).flatten()
+
+        self.observation = np.concatenate((player_position, map_rects, guard_positions))
+
         self.reward = -self.player.rect.centery
 
         self.terminated = self.player.rect.y < 50
@@ -119,13 +135,17 @@ class HiveBoundEnv(gym.Env):
 
         self.surface = self.screen
 
-        self.obeservation = np.array(
-            [self.player.rect.centerx, self.player.rect.centery]
-        )
+        player_position = np.array([self.player.rect.centerx, self.player.rect.centery])
+
+        map_rects = np.array(self.map["rects"]).flatten()
+
+        guard_positions = np.array([guard.rect for guard in self.guards]).flatten()
+
+        self.observation = np.concatenate((player_position, map_rects, guard_positions))
 
         info = {}
 
-        return self.obeservation, info
+        return self.observation, info
 
     def render(self):
 
