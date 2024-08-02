@@ -1,5 +1,6 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
 import time
 import os
 
@@ -17,7 +18,6 @@ if not os.path.exists(log_dir):
 
 env = HiveBoundEnv()
 env.reset()
-
 
 model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=log_dir)
 TIMESTEPS = 10000

@@ -14,12 +14,14 @@ class HiveBoundEnv(gym.Env):
 
     metadata = {"render_modes": ["human"], "render_fps": 30}
 
-    def __init__(self):
+    def __init__(self, render: bool = False, reset_after_no_improvements: int = 20):
         super().__init__()
 
         self.width = WIN_WIDTH
         self.height = WIN_HEIGHT
         self.fps = FPS
+        self.render_mode = "human" if render else None
+        self.time_limit_for_reset_if_no_change_seconds = reset_after_no_improvements
 
         self.screen = pygame.display.set_mode(
             (self.width, self.height), pygame.SRCALPHA
@@ -66,26 +68,17 @@ class HiveBoundEnv(gym.Env):
         self.guard = Guard(Sprite.guard_sprite, (0, 1500 - 128), 5, 2, 30, 200)
 
         self.last_time = time.time()
+        self.last_best_position = self.checkpoint  # initial player position
+        self.last_best_position_change_time = time.time()
 
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(5)
         # Example for using image as input (channel-first; channel-last also works):
-
-        player_position = np.array([self.player.rect.centerx, self.player.rect.centery])
-
-        map_rects = np.array(self.map["rects"]).flatten()
-
-        guard_positions = np.array([guard.rect for guard in self.guards]).flatten()
-
-        observation = np.concatenate((player_position, map_rects, guard_positions))
-
-        # Define observation space
         self.observation_space = spaces.Box(
-            low=0,
-            high=1800,
-            shape=(len(observation),),
+            low=np.array([0, 0]),
+            high=np.array([WIN_WIDTH, 1800]),
             dtype=np.int64,
         )
 
@@ -108,23 +101,38 @@ class HiveBoundEnv(gym.Env):
                 self.down = False
                 self.right = False
 
-        player_position = np.array([self.player.rect.centerx, self.player.rect.centery])
-
-        map_rects = np.array(self.map["rects"]).flatten()
-
-        guard_positions = np.array([guard.rect for guard in self.guards]).flatten()
-
-        self.observation = np.concatenate((player_position, map_rects, guard_positions))
-
+        self.observation = np.array(
+            [self.player.rect.centerx, self.player.rect.centery]
+        )
         self.reward = -self.player.rect.centery
 
         self.terminated = self.player.rect.y < 50
 
+        truncated = False
+
+        current_time = time.time()
+        if self.player.rect.centery < self.last_best_position[1]:
+            self.last_best_position_change_time = current_time
+            self.last_best_position = (
+                self.player.rect.centerx,
+                self.player.rect.centery,
+            )
+        else:
+            if (
+                current_time - self.last_best_position_change_time
+                > self.time_limit_for_reset_if_no_change_seconds
+            ):
+                truncated = True
+                self.last_best_position_change_time = current_time
+
+        if self.terminated or truncated:
+            self.reset()
+
         info = {}
-        return self.observation, self.reward, self.terminated, False, info
+        return self.observation, self.reward, self.terminated, truncated, info
 
     def reset(self, seed=None, options=None):
-
+        super().reset(seed=seed)
         self.done = False
 
         self.camera = [0, 0]
@@ -135,19 +143,18 @@ class HiveBoundEnv(gym.Env):
 
         self.surface = self.screen
 
-        player_position = np.array([self.player.rect.centerx, self.player.rect.centery])
-
-        map_rects = np.array(self.map["rects"]).flatten()
-
-        guard_positions = np.array([guard.rect for guard in self.guards]).flatten()
-
-        self.observation = np.concatenate((player_position, map_rects, guard_positions))
+        self.obeservation = np.array(
+            [self.player.rect.centerx, self.player.rect.centery]
+        )
 
         info = {}
 
-        return self.observation, info
+        return self.obeservation, info
 
     def render(self):
+
+        if self.render is None:
+            return
 
         dt = time.time() - self.last_time
         dt *= self.fps

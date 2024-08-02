@@ -38,11 +38,11 @@ class Player:
                 self.movement[Dir.left] = True
             case 1:
                 self.movement[Dir.right] = True
-            case 3:
+            case 2:
                 self.movement[Dir.jump] = True
                 if self.airtime < 3:
                     self.vert_movement = -5
-            case 4:
+            case 3:
                 self.movement[Dir.stick] = True
             case _:
                 self.movement[Dir.left] = False
